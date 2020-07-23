@@ -81,7 +81,7 @@ void setup() {
   radio.setChannel(0);
   radio.setPALevel(RF24_PA_MAX);
   radio.setDataRate(RF24_250KBPS);
-  radio.setAutoAck(true);
+  radio.setAutoAck(false); // Does not work with my cheap NRF24 clones
   radio.enableDynamicPayloads();
   radio.setRetries(5, 15);
   radio.setCRCLength(RF24_CRC_16);
@@ -93,7 +93,7 @@ void setup() {
 
   // BME280
   unsigned status;
-  unsigned i = 0;
+  byte i = 0;
   do {
     status = bme.begin(0x76, &Wire1);
     i++;
@@ -148,16 +148,52 @@ void sync_weather_data(weather_data data) {
   Serial1.println(data.battery_voltage);
 
   radio.powerUp();
-  radio.stopListening();
-  radio.flush_tx();
 
-  if (radio.write(&data, sizeof(data))) {
+  bool success = writeDataAck(radio, &data, sizeof(data));
+  if (success) {
     Serial1.println("** Weather data sent");
   } else {
     Serial1.println("ERROR: Send failed");
   }
 
   radio.powerDown();
+}
+
+// I implement my own ACK protocol here, because the cheap NRF24 clones do not
+// seem to have (working) auto ACK...
+bool writeDataAck(RF24 &radio, const void *buf, uint8_t len) {
+  char response[31];
+  bool success = false;
+  for (byte i=0; i < 5; ++i) {
+    // Send data
+    if (radio.write(buf, len)) {
+      // Now listen for ACK
+      radio.startListening();
+      for (byte j=0; j < 10; ++j) {
+        if (radio.available()) {
+          len = radio.getDynamicPayloadSize();
+          radio.read(&response, len);
+          response[len] = '\0';
+          if (strcmp(response, "ACK") == 0) {
+            success = true;
+            break;
+          } else {
+            // Got response but it's not ACK
+            Serial1.print("Invalid ACK received: ");
+            Serial1.println(response);
+          }
+        } else {
+          // No ACK received
+          delay(100);
+        }
+      }
+      radio.stopListening();
+      radio.flush_tx();
+      radio.flush_rx();
+    }
+    if (success) break;
+  }
+  return success;
 }
 
 // Did the bucket tip in the last 500ms?

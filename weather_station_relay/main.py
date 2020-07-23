@@ -62,6 +62,10 @@ def try_read_data():
         if payload == b'' or re.match(b'^(.)\\1+$', payload):
             continue
 
+        radio.stopListening()
+        radio.write(b"ACK")
+        radio.startListening()
+
         try:
             (temp, pres, humi, buck, batt) = WeatherData.unpack(payload)
         except struct.error:
@@ -80,14 +84,17 @@ def try_read_data():
 
         print("Weather data received, sending to web server.")
         print(data)
-        apie.send_weather_data(data)
+        try:
+            apie.send_weather_data(data)
+        except:
+            print("ERROR: Could not send weather data!")
 
 def main():
     radio.begin()
     radio.setChannel(0)
     radio.setDataRate(RF24_250KBPS)
     radio.setPALevel(RF24_PA_MAX)
-    radio.setAutoAck(True)
+    radio.setAutoAck(False)
     radio.enableDynamicPayloads()
     radio.setRetries(5, 15)
     radio.setCRCLength(RF24_CRC_16)
@@ -98,7 +105,6 @@ def main():
     radio.printDetails()
 
     radio.startListening()
-    radio.writeAckPayload(0, b'\0')
 
     while True:
         try_read_data()
