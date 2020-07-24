@@ -1,0 +1,9 @@
+[Unit]
+Description=Weather Station Relay
+After=network.target
+
+[Service]
+ExecStart=/home/pi/weather-station-relay/venv/bin/python /home/pi/weather-station-relay/main.py
+
+[Install]
+WantedBy=multi-user.target

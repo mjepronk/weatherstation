@@ -67,10 +67,12 @@ upload the sketch to the MCU.
 
 ### Raspberry Pi
 
-Copy the directory `weather_station_relay` to a directory on your Pi and `cd`
-into it, then execute the following commands:
+Copy the directory `weather-station-relay` to `/home/pi` (or another directory
+of your choice, adapt the commands and service file accordingly) on your
+Raspberry Pi, then execute the following commands:
 
 ```bash
+cd /home/pi/weather-station-relay/
 virtualenv -p python3 venv
 . venv/bin/activate
 git clone https://github.com/nRF24/RF24.git
@@ -84,7 +86,23 @@ cd ../..
 To run the server:
 
 ```bash
-sudo python main.py
+sudo venv/bin/python main.py
+```
+
+Now you can install the Systemd service file:
+
+```bash
+sudo cp systemd/weather-station-relay.service /etc/systemd/system/
+sudo chmod 664 /etc/systemd/system/weather-station-relay.service
+sudo systemctl daemon-reload
+sudo systemctl enable weather-station-relay.service
+```
+
+And run the service:
+
+```bash
+sudo systemctl start weather-station-relay.service
+sudo systemctl status weather-station-relay.service
 ```
 
 Wiring
